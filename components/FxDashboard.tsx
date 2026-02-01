@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { LatestRates, WatchlistItem } from "../lib/types";
 import { addToWatchlist, readWatchlist, removeFromWatchlist, writeWatchlist } from "../lib/watchlist";
+import { clampNumber, parseDecimalInput } from "../lib/format";
 
 import WatchlistControls from "./WatchlistControls";
 import CurrencyCard from "./CurrencyCard";
@@ -26,34 +27,6 @@ export default function FxDashboard() {
 
   const abortRef = useRef<AbortController | null>(null);
 
-  function tryParseSgdAmount(raw: string): { ok: true; value: number } | { ok: false; error: string } | { ok: false; error: null } {
-    const trimmed = raw.trim();
-
-    // Allow empty / in-progress inputs without flashing errors
-    if (trimmed === "" || trimmed === ".") {
-      return { ok: false, error: null };
-    }
-
-    // Remove common separators
-    const normalized = trimmed.replace(/,/g, "");
-
-    // Basic safety: allow digits and at most one dot
-    if (!/^[0-9]*\.?[0-9]*$/.test(normalized)) {
-      return { ok: false, error: "Enter a number (e.g. 1000 or 1,000.50)" };
-    }
-
-    const n = Number(normalized);
-    if (!Number.isFinite(n)) {
-      return { ok: false, error: "Invalid number" };
-    }
-
-    if (n < 0) {
-      return { ok: false, error: "Amount must be ≥ 0" };
-    }
-
-    const capped = Math.min(n, 10_000_000);
-    return { ok: true, value: capped };
-  }
 
   const symbolsParam = useMemo(() => {
     return watchlist.map((w) => w.code).join(",");
@@ -71,11 +44,14 @@ export default function FxDashboard() {
 
   // Keep parsed SGD amount in sync with the raw input.
   useEffect(() => {
-    const parsed = tryParseSgdAmount(sgdAmountInput);
+    const parsed = parseDecimalInput(sgdAmountInput);
+
     if (parsed.ok) {
-      setSgdAmount(parsed.value);
+      const capped = clampNumber(parsed.value, 0, 10_000_000);
+      setSgdAmount(capped);
       setSgdAmountError(null);
     } else {
+      // error may be null for in-progress inputs like "" or "."
       setSgdAmountError(parsed.error);
     }
   }, [sgdAmountInput]);
