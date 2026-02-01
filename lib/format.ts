@@ -8,9 +8,8 @@
  */
 
 export type ParseNumberResult =
-  | { ok: true; value: number }
-  | { ok: false; error: string }
-  | { ok: false; error: null };
+  | { ok: true; value: number; error?: never }
+  | { ok: false; error: string | null; value?: never };
 
 export function normalizeNumberInput(raw: string): string {
   return raw.trim().replace(/,/g, "");
@@ -27,22 +26,22 @@ export function parseDecimalInput(raw: string): ParseNumberResult {
 
   // Allow empty / in-progress inputs
   if (trimmed === "" || trimmed === ".") {
-    return { ok: false, error: null };
+    return { ok: false as const, error: null };
   }
 
   const normalized = normalizeNumberInput(trimmed);
 
   // Basic safety: digits with at most one decimal point
   if (!/^[0-9]*\.?[0-9]*$/.test(normalized)) {
-    return { ok: false, error: "Enter a number (e.g. 1000 or 1,000.50)" };
+    return { ok: false as const, error: "Enter a number (e.g. 1000 or 1,000.50)" };
   }
 
   const n = Number(normalized);
   if (!Number.isFinite(n)) {
-    return { ok: false, error: "Invalid number" };
+    return { ok: false as const, error: "Invalid number" };
   }
 
-  return { ok: true, value: n };
+  return { ok: true as const, value: n };
 }
 
 export function clampNumber(n: number, min: number, max: number): number {
